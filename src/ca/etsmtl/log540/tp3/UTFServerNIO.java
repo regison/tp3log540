@@ -8,9 +8,13 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.util.Collection;
+import java.util.Set;
 
 public class UTFServerNIO {
 
+	int compt;
+	
 	public static void main(String[] args) throws IOException {
 		new UTFServerNIO().run();
 	}
@@ -27,75 +31,81 @@ public class UTFServerNIO {
 		System.out.println("ServeurSocketChannel NIO en mode on ");
 		serverSocket.bind(address);
 
+		//Element de la lecture
+		//int offset = 0; int length = 100; char[] cbuf = new char[length]; 
+		
 		// mode asynchrone
 		serverChannel.configureBlocking(false);
 
-		// enregistrement au canal du selector
+		// création et enregistrement du selector au canal
 		Selector selector = Selector.open();
 		serverChannel.register(selector, SelectionKey.OP_ACCEPT);
 
-		while( !Thread.interrupted() ){
-			selector.select();
-		for (SelectionKey key : selector.selectedKeys()) {
-			if (key.isAcceptable()) {
-				ServerSocketChannel server = (ServerSocketChannel) key
-						.channel();
-				SocketChannel client = server.accept();
-				System.out.println("Connection etablie avec succes");
-				client.configureBlocking(false);
-				client.register(selector, SelectionKey.OP_READ,
-						ByteBuffer.allocate(100));
-			}
-			if (key.isReadable()) {
-				SocketChannel client = (SocketChannel) key.channel();
-				ByteBuffer output = (ByteBuffer) key.attachment();
-				client.read(output);
+			while( !Thread.interrupted() ){
+				
+				selector.select();
+				//SelectionKey key = (SelectionKey) selector.selectedKeys(); //récupération de l'évvènement associé
+				
+				for (SelectionKey key : selector.selectedKeys()) {
+				
+					if (key.isValid())
+					{
+						
+						if (key.isReadable()) {	
+							SocketChannel client = (SocketChannel) key.channel();
+							ByteBuffer output  = (ByteBuffer) key.attachment() ;
+							output.flip();
+							int capacity = client.read(output);
+							//client.read(output);
+							if (capacity < 0){
+								//System.out.println("Erreur de lecture, client probablement déconnecté ");
+								//client.socket().close();
+								//client.close();
+								//key.cancel();
+							}
+							else 
+							{
+							String rcv = new String(output.array());
+							System.out.println("Vous avez tapez : " + rcv);
+							output.clear();
+							}
+						}
+						
+						if (key.isAcceptable()) {
+							
 
-				/*
-				 * int offset = 0; int length = 256; char[] cbuf = new
-				 * char[length];
-				 * 
-				 * while (client.read(cbuf, offset, cbuf.length) != -1) {
-				 * outPut.write("Vous avez tapez : " + new String(cbuf));
-				 * outPut.newLine(); outPut.flush(); cbuf = new char[length];
-				 * 
-				 * }
-				 */
-				output.clear();
+							ServerSocketChannel server = (ServerSocketChannel) key.channel();
+							SocketChannel client = server.accept();
+							System.out.println("Connection " + compt + " etablie avec succes");
+							compt++;
+							client.configureBlocking(false);
+							client.register(selector, SelectionKey.OP_READ, ByteBuffer.allocate(100));
+							
+						
+						
+						}
+						
+					}
+					
+				
 			}
+			
+			selector.selectedKeys().clear();
+	
 		}
-
+			
+			
+			/*
+			finally { 
+				
+			IOUtil.closeSocket(outPut); IOUtil.closeSocket(inPut);
+			IOUtil.closeSocket(socketClient);
+			IOUtil.closeSocket(socketServeur); 
+		
+			} 	
+			*/
+			
+	
 	}
-	}
-	/*
-	 * 
-	 * public class UTFServer {
-	 * 
-	 * public static void main(String[] args) throws IOException {
-	 * 
-	 * ServerSocket socketServeur = null; Socket socketClient = null;
-	 * BufferedWriter outPut = null; InputStreamReader inPut = null; int port =
-	 * 10110; try { socketServeur = new ServerSocket(port);
-	 * System.out.println("Serveur_simple en mode on "); socketClient =
-	 * socketServeur.accept();
-	 * System.out.println("Connection etablie avec succes"); outPut = new
-	 * BufferedWriter(new OutputStreamWriter(System.out, "UTF8")); inPut = new
-	 * InputStreamReader(socketClient.getInputStream(), "UTF-8"); int offset =
-	 * 0; int length = 256; char[] cbuf = new char[length]; while
-	 * (inPut.read(cbuf, offset, cbuf.length) != -1) {
-	 * outPut.write("Vous avez tapez : " + new String(cbuf)); outPut.newLine();
-	 * outPut.flush(); cbuf = new char[length];
-	 * 
-	 * }
-	 * 
-	 * 
-	 * } catch (IOException e) {
-	 * System.err.println("On ne peut pas ecouter sur le   port: 10110.");
-	 * System.exit(1);
-	 * 
-	 * } finally { IOUtil.closeSocket(outPut); IOUtil.closeSocket(inPut);
-	 * IOUtil.closeSocket(socketClient); IOUtil.closeSocket(socketServeur); } }
-	 * }
-	 */
 
 }
